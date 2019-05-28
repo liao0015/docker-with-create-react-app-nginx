@@ -1,44 +1,119 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# create-react-app in docker
 
-## Available Scripts
+This test is specifically for whoever is working on 'create-react-app' in docker on Windows 10 using `docker-machine` and `virtual box`
 
-In the project directory, you can run:
+## `docker-compose`
 
-### `npm start`
+Please check out both `docker-compose.dev` files.  Version 1 is a simplied version and Version 2 contains more structure and both work perfectly in this case with `create-react-app`
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```bash
+docker-compose -f docker-compose.dev1.yml build
+docker-compose -f docker-compose.dev1.yml up
+docker-compose -f docker-compose.dev1.yml down
+```
 
-The page will reload if you make edits.<br>
-You will also see any lint errors in the console.
+```bash
+docker-compose -f docker-compose.dev2.yml build
+docker-compose -f docker-compose.dev2.yml up
+docker-compose -f docker-compose.dev2.yml down
+```
 
-### `npm test`
+For production, we would like to include multiple level build process and ngnix into the picture :)
 
-Launches the test runner in the interactive watch mode.<br>
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- We are using a separate Dockerfile for production that handles the multple stage image building process
+- The Dockerfile will also include nginx build process
+- A much more simplified `docker-compose.prod` file as many features are not needed in production
 
-### `npm run build`
+```bash
+docker-compose -f docker-compose.prod.yml build
+docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml down
+```
 
-Builds the app for production to the `build` folder.<br>
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Access the web site at `http://192.168.99.100/`
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+## Dockerfile and `docker run`
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+# build the docker image
+$ docker build .
+# or, this way you specify an image name, easier to call
+docker image build -t react:app .
 
-### `npm run eject`
+# check Docker image ID
+$ docker images
+# run the specific image with image id
+$ docker container run -p 80:3000 <image-id>
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+# or with an unique image name, you can
+$ docker container run -p 80:3000 react:app
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# or with a container name
+$ docker container run --name my-react-container -p 80:3000 react:app
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+You will be able to check your react app at `http://192.168.99.100/`, which is the `docker-machine ip <docker-machine name>`, and keep in mind that if you use `docker-machine` and virutalbox,  `localhost` will NOT work.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Now, with the react app running, you will notice that there is NO hot reloading: if you change the app content, the app will NOT update, even by refreshing the browser. So for each chagne you make, you will have to all the followings to reflect the changes:
 
-## Learn More
+```bash
+docker stop <container>
+docker rm <container>
+docker build .
+docker run -p 80:3000 <image id>
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Using docker volume to 'bind' the local file dir to docker container
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# remove the previous container
+# re-run
+$ docker run -p 80:3000 -p 35729:35729 -v ${pwd}:/app <image id>
+# or you can do a volumn mount and expose the websocket port 35729 as specified in Dockerfile
+docker container run -it -p 3000:3000 -p 35729:35729 --volume ${pwd}:/app <image id>
+# unfortunately, this way does NOT work for windows using docker machine & virtualbox :(
+```
+
+To bind volume and enable hot-reloading (exposing port 35729 is not necessary either)
+
+```bash
+# -e (environment flag)
+$ docker run -p 80:3000 -v /c/Path/To/docker-react-app:/app -e CHOKIDAR_USEPOLLING=true <image id>
+```
+
+## bonus: react router & nginx
+
+If you are going to use react rouer for client side routing, add the following changes to your `Dockerfile-prod`:
+
+```dockerfile
+...
+# production environment
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx/nginx.conf /etc/nginx/conf.d
+EXPOSE 80
+...
+```
+
+Create the following folder along with a `nginx.conf` file-> `nginx/nginx.conf` with the following contents:
+
+```nginx.conf
+server {
+
+  listen 80;
+
+  location / {
+    root   /usr/share/nginx/html;
+    index  index.html index.htm;
+    try_files $uri $uri/ /index.html;
+  }
+
+  error_page   500 502 503 504  /50x.html;
+
+  location = /50x.html {
+    root   /usr/share/nginx/html;
+  }
+
+}
+```
+
+[An awesome tutorial by Michael Herman](https://mherman.org/blog/dockerizing-a-react-app/)

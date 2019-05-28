@@ -1,0 +1,25 @@
+version: '3.6'
+
+services:
+  create-react-app-service:
+    container_name: create-react-app-container
+    image: create-react-app-docker:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+      - type: volume
+        source: mydata
+        target: /home/mydata
+    ports:
+      - '80:3000'
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+networks: 
+  sky-net:
+volumes:
+  mydata:

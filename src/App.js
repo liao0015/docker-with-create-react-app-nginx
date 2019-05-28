@@ -8,16 +8,17 @@ class App extends Component {
       <div className="App">
         <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
+          <h1>iMetaLab Dashboard XXX</h1>
+          <p>Data processing, visualization and analysis</p>
+          <p>need this to test hot reloading</p>
+          <p>the real test for hot reloading</p>
           <a
             className="App-link"
-            href="https://reactjs.org"
+            href="http://imetalab.ca"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Learn React
+            Learn iMetaLab workflow
           </a>
         </header>
       </div>
